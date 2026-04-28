@@ -1,18 +1,25 @@
 """
 setup_database.py
-Creates the clinic.db SQLite database with schema and realistic dummy data.
+Creates the PostgreSQL database schema and realistic dummy data.
 Run this once to bootstrap the database for the NL2SQL chatbot.
 """
 
-import sqlite3
+import psycopg2
 import random
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clinic.db")
+PG_HOST = os.getenv("PG_HOST", "localhost")
+PG_PORT = os.getenv("PG_PORT", "5432")
+PG_USER = os.getenv("PG_USER", "postgres")
+PG_PASSWORD = os.getenv("PG_PASSWORD")
+PG_DATABASE = os.getenv("PG_DATABASE", "clinic")
 
 NUM_PATIENTS = 200
 NUM_DOCTORS = 15
@@ -101,21 +108,18 @@ def random_date(start: datetime, end: datetime) -> datetime:
     random_seconds = random.randint(0, int(delta.total_seconds()))
     return start + timedelta(seconds=random_seconds)
 
-
 def random_phone() -> str:
     return f"+91-{random.randint(70000, 99999)}{random.randint(10000, 99999)}"
-
 
 def maybe_null(value, null_probability: float = 0.15):
     """Return None with the given probability, else return value."""
     return None if random.random() < null_probability else value
 
-
 # ---------------------------------------------------------------------------
 # Schema creation
 # ---------------------------------------------------------------------------
-def create_schema(cur: sqlite3.Cursor):
-    cur.executescript("""
+def create_schema(cur):
+    schema = """
         DROP TABLE IF EXISTS invoices;
         DROP TABLE IF EXISTS treatments;
         DROP TABLE IF EXISTS appointments;
@@ -123,61 +127,61 @@ def create_schema(cur: sqlite3.Cursor):
         DROP TABLE IF EXISTS patients;
 
         CREATE TABLE patients (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name      TEXT NOT NULL,
-            last_name       TEXT NOT NULL,
-            email           TEXT,
-            phone           TEXT,
+            id              SERIAL PRIMARY KEY,
+            first_name      VARCHAR(255) NOT NULL,
+            last_name       VARCHAR(255) NOT NULL,
+            email           VARCHAR(255),
+            phone           VARCHAR(255),
             date_of_birth   DATE,
-            gender          TEXT CHECK(gender IN ('M', 'F')),
-            city            TEXT,
+            gender          VARCHAR(1) CHECK(gender IN ('M', 'F')),
+            city            VARCHAR(255),
             registered_date DATE
         );
 
         CREATE TABLE doctors (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            name            TEXT NOT NULL,
-            specialization  TEXT,
-            department      TEXT,
-            phone           TEXT
+            id              SERIAL PRIMARY KEY,
+            name            VARCHAR(255) NOT NULL,
+            specialization  VARCHAR(255),
+            department      VARCHAR(255),
+            phone           VARCHAR(255)
         );
 
         CREATE TABLE appointments (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            id                SERIAL PRIMARY KEY,
             patient_id        INTEGER NOT NULL,
             doctor_id         INTEGER NOT NULL,
-            appointment_date  DATETIME,
-            status            TEXT CHECK(status IN ('Scheduled','Completed','Cancelled','No-Show')),
+            appointment_date  TIMESTAMP,
+            status            VARCHAR(50) CHECK(status IN ('Scheduled','Completed','Cancelled','No-Show')),
             notes             TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients(id),
             FOREIGN KEY (doctor_id)  REFERENCES doctors(id)
         );
 
         CREATE TABLE treatments (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            id                SERIAL PRIMARY KEY,
             appointment_id    INTEGER NOT NULL,
-            treatment_name    TEXT,
-            cost              REAL,
+            treatment_name    VARCHAR(255),
+            cost              DOUBLE PRECISION,
             duration_minutes  INTEGER,
             FOREIGN KEY (appointment_id) REFERENCES appointments(id)
         );
 
         CREATE TABLE invoices (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            id              SERIAL PRIMARY KEY,
             patient_id      INTEGER NOT NULL,
             invoice_date    DATE,
-            total_amount    REAL,
-            paid_amount     REAL,
-            status          TEXT CHECK(status IN ('Paid','Pending','Overdue')),
+            total_amount    DOUBLE PRECISION,
+            paid_amount     DOUBLE PRECISION,
+            status          VARCHAR(50) CHECK(status IN ('Paid','Pending','Overdue')),
             FOREIGN KEY (patient_id) REFERENCES patients(id)
         );
-    """)
-
+    """
+    cur.execute(schema)
 
 # ---------------------------------------------------------------------------
 # Data insertion
 # ---------------------------------------------------------------------------
-def insert_doctors(cur: sqlite3.Cursor) -> list[dict]:
+def insert_doctors(cur) -> list[dict]:
     """Insert 15 doctors across 5 specializations (3 each)."""
     doctors = []
     for i, first in enumerate(DOCTOR_FIRST_NAMES[:NUM_DOCTORS]):
@@ -186,14 +190,14 @@ def insert_doctors(cur: sqlite3.Cursor) -> list[dict]:
         dept = DEPARTMENTS[spec]
         phone = random_phone()
         cur.execute(
-            "INSERT INTO doctors (name, specialization, department, phone) VALUES (?,?,?,?)",
+            "INSERT INTO doctors (name, specialization, department, phone) VALUES (%s,%s,%s,%s) RETURNING id",
             (f"Dr. {first} {last}", spec, dept, phone),
         )
-        doctors.append({"id": cur.lastrowid, "specialization": spec})
+        doc_id = cur.fetchone()[0]
+        doctors.append({"id": doc_id, "specialization": spec})
     return doctors
 
-
-def insert_patients(cur: sqlite3.Cursor) -> list[int]:
+def insert_patients(cur) -> list[int]:
     """Insert 200 patients with realistic attributes."""
     patient_ids = []
     now = datetime.now()
@@ -210,31 +214,23 @@ def insert_patients(cur: sqlite3.Cursor) -> list[int]:
         cur.execute(
             """INSERT INTO patients
                (first_name, last_name, email, phone, date_of_birth, gender, city, registered_date)
-               VALUES (?,?,?,?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (first, last, email, phone, dob, gender, city, reg_date),
         )
-        patient_ids.append(cur.lastrowid)
+        patient_id = cur.fetchone()[0]
+        patient_ids.append(patient_id)
     return patient_ids
 
-
-def insert_appointments(
-    cur: sqlite3.Cursor,
-    patient_ids: list[int],
-    doctors: list[dict],
-) -> list[dict]:
+def insert_appointments(cur, patient_ids: list[int], doctors: list[dict]) -> list[dict]:
     """
     Insert 500 appointments over the past 12 months.
-    Some patients are 'repeat visitors' with many appointments.
-    Some doctors get more appointments than others.
     """
     now = datetime.now()
     twelve_months_ago = now - timedelta(days=365)
 
-    # Create a weighted patient pool — ~20 % of patients are frequent visitors
     frequent_patients = random.sample(patient_ids, k=int(len(patient_ids) * 0.2))
-    patient_pool = patient_ids + frequent_patients * 4  # frequent ones appear 5x total
+    patient_pool = patient_ids + frequent_patients * 4
 
-    # Create a weighted doctor pool — some doctors busier
     busy_doctors = random.sample(doctors, k=5)
     doctor_pool = doctors + busy_doctors * 3
 
@@ -243,13 +239,12 @@ def insert_appointments(
         pid = random.choice(patient_pool)
         doc = random.choice(doctor_pool)
         appt_date = random_date(twelve_months_ago, now)
-        # Future appointments are always Scheduled
         if appt_date > now:
             status = "Scheduled"
         else:
             status = random.choices(
                 APPOINTMENT_STATUSES,
-                weights=[5, 70, 15, 10],  # heavily Completed to ensure enough treatments
+                weights=[5, 70, 15, 10],
                 k=1,
             )[0]
         notes = maybe_null(
@@ -263,11 +258,12 @@ def insert_appointments(
         cur.execute(
             """INSERT INTO appointments
                (patient_id, doctor_id, appointment_date, status, notes)
-               VALUES (?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s) RETURNING id""",
             (pid, doc["id"], appt_date.strftime("%Y-%m-%d %H:%M:%S"), status, notes),
         )
+        appt_id = cur.fetchone()[0]
         appointments.append({
-            "id": cur.lastrowid,
+            "id": appt_id,
             "doctor_spec": doc["specialization"],
             "status": status,
             "patient_id": pid,
@@ -275,12 +271,11 @@ def insert_appointments(
         })
     return appointments
 
-
-def insert_treatments(cur: sqlite3.Cursor, appointments: list[dict]):
+def insert_treatments(cur, appointments: list[dict]):
     """Insert 350 treatments linked to Completed appointments."""
     completed = [a for a in appointments if a["status"] == "Completed"]
     if len(completed) < NUM_TREATMENTS:
-        chosen = completed  # use all completed if not enough
+        chosen = completed
     else:
         chosen = random.sample(completed, NUM_TREATMENTS)
 
@@ -292,14 +287,12 @@ def insert_treatments(cur: sqlite3.Cursor, appointments: list[dict]):
         cur.execute(
             """INSERT INTO treatments
                (appointment_id, treatment_name, cost, duration_minutes)
-               VALUES (?,?,?,?)""",
+               VALUES (%s,%s,%s,%s)""",
             (appt["id"], treatment, cost, duration),
         )
 
-
-def insert_invoices(cur: sqlite3.Cursor, appointments: list[dict]):
+def insert_invoices(cur, appointments: list[dict]):
     """Insert 300 invoices with a mix of statuses."""
-    # Pick unique patients who have completed appointments for invoices
     completed = [a for a in appointments if a["status"] == "Completed"]
     random.shuffle(completed)
 
@@ -317,66 +310,70 @@ def insert_invoices(cur: sqlite3.Cursor, appointments: list[dict]):
             paid = total
         elif status == "Pending":
             paid = round(random.uniform(0, total * 0.5), 2)
-        else:  # Overdue
+        else:
             paid = round(random.uniform(0, total * 0.3), 2)
 
         invoice_date = appt["date"] + timedelta(days=random.randint(0, 7))
         cur.execute(
             """INSERT INTO invoices
                (patient_id, invoice_date, total_amount, paid_amount, status)
-               VALUES (?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s)""",
             (appt["patient_id"], invoice_date.strftime("%Y-%m-%d"), total, paid, status),
         )
         created += 1
-
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    # Remove old DB if it exists
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
+    try:
+        conn = psycopg2.connect(
+            host=PG_HOST,
+            port=PG_PORT,
+            user=PG_USER,
+            password=PG_PASSWORD,
+            dbname=PG_DATABASE
+        )
+        cur = conn.cursor()
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
-    cur = conn.cursor()
+        print("Creating schema …")
+        create_schema(cur)
 
-    print("Creating schema …")
-    create_schema(cur)
+        print("Inserting doctors …")
+        doctors = insert_doctors(cur)
 
-    print("Inserting doctors …")
-    doctors = insert_doctors(cur)
+        print("Inserting patients …")
+        patient_ids = insert_patients(cur)
 
-    print("Inserting patients …")
-    patient_ids = insert_patients(cur)
+        print("Inserting appointments …")
+        appointments = insert_appointments(cur, patient_ids, doctors)
 
-    print("Inserting appointments …")
-    appointments = insert_appointments(cur, patient_ids, doctors)
+        print("Inserting treatments …")
+        insert_treatments(cur, appointments)
 
-    print("Inserting treatments …")
-    insert_treatments(cur, appointments)
+        print("Inserting invoices …")
+        insert_invoices(cur, appointments)
 
-    print("Inserting invoices …")
-    insert_invoices(cur, appointments)
+        conn.commit()
 
-    conn.commit()
+        # ---- Summary ----
+        counts = {}
+        for table in ["patients", "doctors", "appointments", "treatments", "invoices"]:
+            cur.execute(f"SELECT COUNT(*) FROM {table}")
+            counts[table] = cur.fetchone()[0]
 
-    # ---- Summary ----
-    counts = {}
-    for table in ["patients", "doctors", "appointments", "treatments", "invoices"]:
-        counts[table] = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        cur.close()
+        conn.close()
 
-    conn.close()
-
-    print("\n[OK] Database created successfully!")
-    print(f"   File: {DB_PATH}\n")
-    print(f"   Created {counts['patients']} patients, "
-          f"{counts['doctors']} doctors, "
-          f"{counts['appointments']} appointments, "
-          f"{counts['treatments']} treatments, "
-          f"{counts['invoices']} invoices.")
-
+        print("\n[OK] Database created successfully!")
+        print(f"   Database: {PG_DATABASE} on {PG_HOST}:{PG_PORT}\n")
+        print(f"   Created {counts['patients']} patients, "
+              f"{counts['doctors']} doctors, "
+              f"{counts['appointments']} appointments, "
+              f"{counts['treatments']} treatments, "
+              f"{counts['invoices']} invoices.")
+    except Exception as e:
+        print(f"Database setup error: {e}")
 
 if __name__ == "__main__":
     main()

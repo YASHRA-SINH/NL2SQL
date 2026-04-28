@@ -55,13 +55,13 @@ SEED_PAIRS: list[tuple[str, str]] = [
         "Which doctor has the most appointments?",
         "SELECT d.name, COUNT(*) AS appointment_count "
         "FROM appointments a JOIN doctors d ON a.doctor_id = d.id "
-        "GROUP BY d.id ORDER BY appointment_count DESC LIMIT 1",
+        "GROUP BY d.id, d.name ORDER BY appointment_count DESC LIMIT 1",
     ),
     (
         "How many appointments does each doctor have?",
         "SELECT d.name, d.specialization, COUNT(*) AS appointment_count "
         "FROM appointments a JOIN doctors d ON a.doctor_id = d.id "
-        "GROUP BY d.id ORDER BY appointment_count DESC",
+        "GROUP BY d.id, d.name, d.specialization ORDER BY appointment_count DESC",
     ),
 
     # ── Appointment queries ────────────────────────────────────────────────
@@ -71,14 +71,14 @@ SEED_PAIRS: list[tuple[str, str]] = [
     ),
     (
         "Show monthly appointment count for the last 12 months",
-        "SELECT strftime('%Y-%m', appointment_date) AS month, COUNT(*) AS count "
+        "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS count "
         "FROM appointments GROUP BY month ORDER BY month",
     ),
     (
         "Which patients have the most appointments?",
         "SELECT p.first_name || ' ' || p.last_name AS patient_name, COUNT(*) AS visit_count "
         "FROM appointments a JOIN patients p ON a.patient_id = p.id "
-        "GROUP BY a.patient_id ORDER BY visit_count DESC LIMIT 10",
+        "GROUP BY a.patient_id, p.first_name, p.last_name ORDER BY visit_count DESC LIMIT 10",
     ),
 
     # ── Financial queries ──────────────────────────────────────────────────
@@ -101,7 +101,7 @@ SEED_PAIRS: list[tuple[str, str]] = [
     ),
     (
         "What is the average treatment cost?",
-        "SELECT ROUND(AVG(cost), 2) AS avg_cost FROM treatments",
+        "SELECT ROUND(AVG(cost)::numeric, 2) AS avg_cost FROM treatments",
     ),
 
     # ── Time-based queries ─────────────────────────────────────────────────
@@ -112,12 +112,12 @@ SEED_PAIRS: list[tuple[str, str]] = [
         "FROM appointments a "
         "JOIN patients p ON a.patient_id = p.id "
         "JOIN doctors d ON a.doctor_id = d.id "
-        "WHERE a.appointment_date >= date('now', '-3 months') "
+        "WHERE a.appointment_date >= CURRENT_DATE - INTERVAL '3 months' "
         "ORDER BY a.appointment_date DESC",
     ),
     (
         "Show monthly revenue trend",
-        "SELECT strftime('%Y-%m', invoice_date) AS month, "
+        "SELECT TO_CHAR(invoice_date, 'YYYY-MM') AS month, "
         "SUM(total_amount) AS revenue, SUM(paid_amount) AS collected "
         "FROM invoices GROUP BY month ORDER BY month",
     ),
@@ -131,7 +131,7 @@ SEED_PAIRS: list[tuple[str, str]] = [
         "SELECT p.first_name || ' ' || p.last_name AS patient, "
         "SUM(i.total_amount) AS total_billed "
         "FROM invoices i JOIN patients p ON i.patient_id = p.id "
-        "GROUP BY i.patient_id ORDER BY total_billed DESC LIMIT 5",
+        "GROUP BY i.patient_id, p.first_name, p.last_name ORDER BY total_billed DESC LIMIT 5",
     ),
 ]
 

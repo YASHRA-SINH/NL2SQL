@@ -35,26 +35,26 @@ async def lifespan(app: FastAPI):
         # Inject DDL into RAM so the LLM knows the exact table structures
         schema_ddl = """
         CREATE TABLE patients (
-            id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT, phone TEXT,
-            date_of_birth DATE, gender TEXT, city TEXT, registered_date DATE
+            id SERIAL PRIMARY KEY, first_name VARCHAR(255), last_name VARCHAR(255), email VARCHAR(255), phone VARCHAR(255),
+            date_of_birth DATE, gender VARCHAR(1), city VARCHAR(255), registered_date DATE
         );
         CREATE TABLE doctors (
-            id INTEGER PRIMARY KEY, name TEXT, specialization TEXT, department TEXT, phone TEXT
+            id SERIAL PRIMARY KEY, name VARCHAR(255), specialization VARCHAR(255), department VARCHAR(255), phone VARCHAR(255)
         );
         CREATE TABLE appointments (
-            id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER,
-            appointment_date DATETIME, status TEXT, notes TEXT,
+            id SERIAL PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER,
+            appointment_date TIMESTAMP, status VARCHAR(50), notes TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients(id),
             FOREIGN KEY (doctor_id) REFERENCES doctors(id)
         );
         CREATE TABLE treatments (
-            id INTEGER PRIMARY KEY, appointment_id INTEGER, treatment_name TEXT,
-            cost REAL, duration_minutes INTEGER,
+            id SERIAL PRIMARY KEY, appointment_id INTEGER, treatment_name VARCHAR(255),
+            cost DOUBLE PRECISION, duration_minutes INTEGER,
             FOREIGN KEY (appointment_id) REFERENCES appointments(id)
         );
         CREATE TABLE invoices (
-            id INTEGER PRIMARY KEY, patient_id INTEGER, invoice_date DATE,
-            total_amount REAL, paid_amount REAL, status TEXT,
+            id SERIAL PRIMARY KEY, patient_id INTEGER, invoice_date DATE,
+            total_amount DOUBLE PRECISION, paid_amount DOUBLE PRECISION, status VARCHAR(50),
             FOREIGN KEY (patient_id) REFERENCES patients(id)
         );
         """

@@ -1,6 +1,6 @@
 [
   {
-    "memory_id": "32fd4972-d05b-41ef-b510-b47e1a1f68dc",
+    "memory_id": "fd55723f-5967-4900-8eae-f71b8dae9001",
     "question": "How many patients do we have?",
     "tool_name": "run_sql",
     "args": {
@@ -8,10 +8,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:05.904214"
+    "timestamp": "2026-04-29T00:37:22.335779"
   },
   {
-    "memory_id": "cd354808-3f5e-4b86-8084-ac501acc7b14",
+    "memory_id": "9f65adf3-b098-4faa-8a5b-4b43550e0c06",
     "question": "List all patients from Mumbai",
     "tool_name": "run_sql",
     "args": {
@@ -19,10 +19,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:05.907488"
+    "timestamp": "2026-04-29T00:37:22.337649"
   },
   {
-    "memory_id": "59f2bc9b-bf38-4310-9c1a-96087c859c92",
+    "memory_id": "1a056c4a-17ac-4654-985a-d9e03844e00f",
     "question": "How many male and female patients are there?",
     "tool_name": "run_sql",
     "args": {
@@ -30,10 +30,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:05.932902"
+    "timestamp": "2026-04-29T00:37:22.363108"
   },
   {
-    "memory_id": "0c358c65-623c-48a7-95f8-00dc0045d35b",
+    "memory_id": "119d5388-e886-47ba-a745-d66949ad763d",
     "question": "Which city has the most patients?",
     "tool_name": "run_sql",
     "args": {
@@ -41,10 +41,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:05.957744"
+    "timestamp": "2026-04-29T00:37:22.384023"
   },
   {
-    "memory_id": "9ae5e40b-0428-4401-b3d0-7d7512b6098e",
+    "memory_id": "3b37ad21-359e-47e9-895f-7daae9fd7804",
     "question": "Show patient count by city",
     "tool_name": "run_sql",
     "args": {
@@ -52,10 +52,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:05.977953"
+    "timestamp": "2026-04-29T00:37:22.407778"
   },
   {
-    "memory_id": "6737fc12-5a6f-483d-b0b5-b74c8996911d",
+    "memory_id": "6c03a734-c181-4577-8746-d46eb0af1b4e",
     "question": "Show me all doctors and their specializations",
     "tool_name": "run_sql",
     "args": {
@@ -63,32 +63,32 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.003951"
+    "timestamp": "2026-04-29T00:37:22.432133"
   },
   {
-    "memory_id": "1f1d6e84-dc07-44c5-b129-ae7270857c37",
+    "memory_id": "b5bcc1ec-c0a1-42ea-93a3-cc5c4dc82364",
     "question": "Which doctor has the most appointments?",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT d.name, COUNT(*) AS appointment_count FROM appointments a JOIN doctors d ON a.doctor_id = d.id GROUP BY d.id ORDER BY appointment_count DESC LIMIT 1"
+      "sql": "SELECT d.name, COUNT(*) AS appointment_count FROM appointments a JOIN doctors d ON a.doctor_id = d.id GROUP BY d.id, d.name ORDER BY appointment_count DESC LIMIT 1"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.030031"
+    "timestamp": "2026-04-29T00:37:22.456865"
   },
   {
-    "memory_id": "71e616dd-5ad8-4dab-840a-9dfbeaa9c3a7",
+    "memory_id": "b03ed8e0-7625-44b1-ab11-7236e29318fe",
     "question": "How many appointments does each doctor have?",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT d.name, d.specialization, COUNT(*) AS appointment_count FROM appointments a JOIN doctors d ON a.doctor_id = d.id GROUP BY d.id ORDER BY appointment_count DESC"
+      "sql": "SELECT d.name, d.specialization, COUNT(*) AS appointment_count FROM appointments a JOIN doctors d ON a.doctor_id = d.id GROUP BY d.id, d.name, d.specialization ORDER BY appointment_count DESC"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.058026"
+    "timestamp": "2026-04-29T00:37:22.475040"
   },
   {
-    "memory_id": "536dfc33-9312-4e8c-b8ac-67c81a84bca7",
+    "memory_id": "0c0c0ffd-6da8-4eb1-b291-9733eeb3c94e",
     "question": "How many appointments are there by status?",
     "tool_name": "run_sql",
     "args": {
@@ -96,32 +96,32 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.085911"
+    "timestamp": "2026-04-29T00:37:22.498762"
   },
   {
-    "memory_id": "6906291d-4efd-4c57-8772-9b72a13fcd31",
+    "memory_id": "1b748717-4310-4899-9851-d5c952dbc2fb",
     "question": "Show monthly appointment count for the last 12 months",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT strftime('%Y-%m', appointment_date) AS month, COUNT(*) AS count FROM appointments GROUP BY month ORDER BY month"
+      "sql": "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS count FROM appointments GROUP BY month ORDER BY month"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.113298"
+    "timestamp": "2026-04-29T00:37:22.522399"
   },
   {
-    "memory_id": "e408f119-dd34-4e61-b5da-0eb7fa0fefc7",
+    "memory_id": "deb7fed6-e01b-4488-aeb3-f07f35f66edb",
     "question": "Which patients have the most appointments?",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT p.first_name || ' ' || p.last_name AS patient_name, COUNT(*) AS visit_count FROM appointments a JOIN patients p ON a.patient_id = p.id GROUP BY a.patient_id ORDER BY visit_count DESC LIMIT 10"
+      "sql": "SELECT p.first_name || ' ' || p.last_name AS patient_name, COUNT(*) AS visit_count FROM appointments a JOIN patients p ON a.patient_id = p.id GROUP BY a.patient_id, p.first_name, p.last_name ORDER BY visit_count DESC LIMIT 10"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.139707"
+    "timestamp": "2026-04-29T00:37:22.545229"
   },
   {
-    "memory_id": "13e5bd20-ef38-43d0-a07e-475b48a2bb94",
+    "memory_id": "70adea3f-b622-47bb-8237-943e81775b07",
     "question": "What is the total revenue?",
     "tool_name": "run_sql",
     "args": {
@@ -129,10 +129,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.165781"
+    "timestamp": "2026-04-29T00:37:22.569892"
   },
   {
-    "memory_id": "2f7ad357-ecd9-436c-8621-bdf15060c572",
+    "memory_id": "f4724d1e-c7b1-4570-b317-60923244cd84",
     "question": "Show revenue by doctor",
     "tool_name": "run_sql",
     "args": {
@@ -140,10 +140,10 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.191750"
+    "timestamp": "2026-04-29T00:37:22.593944"
   },
   {
-    "memory_id": "e2f9c36a-973c-4252-8a3d-f1effa213df0",
+    "memory_id": "47ae2f29-4133-4bc9-9556-103e674d61d1",
     "question": "How many invoices are unpaid or overdue?",
     "tool_name": "run_sql",
     "args": {
@@ -151,43 +151,43 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.218789"
+    "timestamp": "2026-04-29T00:37:22.617971"
   },
   {
-    "memory_id": "33c6e3fb-e179-4d86-9413-4d6e8875f269",
+    "memory_id": "f55dabca-238d-4aef-ae1a-c56514d43120",
     "question": "What is the average treatment cost?",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT ROUND(AVG(cost), 2) AS avg_cost FROM treatments"
+      "sql": "SELECT ROUND(AVG(cost)::numeric, 2) AS avg_cost FROM treatments"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.245632"
+    "timestamp": "2026-04-29T00:37:22.641407"
   },
   {
-    "memory_id": "41c83253-a8f5-4f29-96ab-e896af4e32d5",
+    "memory_id": "64f0cc7a-6e0e-44e0-b8f2-a521eb68e773",
     "question": "Show appointments from the last 3 months",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT a.id, p.first_name || ' ' || p.last_name AS patient, d.name AS doctor, a.appointment_date, a.status FROM appointments a JOIN patients p ON a.patient_id = p.id JOIN doctors d ON a.doctor_id = d.id WHERE a.appointment_date >= date('now', '-3 months') ORDER BY a.appointment_date DESC"
+      "sql": "SELECT a.id, p.first_name || ' ' || p.last_name AS patient, d.name AS doctor, a.appointment_date, a.status FROM appointments a JOIN patients p ON a.patient_id = p.id JOIN doctors d ON a.doctor_id = d.id WHERE a.appointment_date >= CURRENT_DATE - INTERVAL '3 months' ORDER BY a.appointment_date DESC"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.272377"
+    "timestamp": "2026-04-29T00:37:22.668048"
   },
   {
-    "memory_id": "87e672da-7dd8-4d98-b6fe-d49afcffd06e",
+    "memory_id": "d4802404-0e25-4b74-88fc-99035a183376",
     "question": "Show monthly revenue trend",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT strftime('%Y-%m', invoice_date) AS month, SUM(total_amount) AS revenue, SUM(paid_amount) AS collected FROM invoices GROUP BY month ORDER BY month"
+      "sql": "SELECT TO_CHAR(invoice_date, 'YYYY-MM') AS month, SUM(total_amount) AS revenue, SUM(paid_amount) AS collected FROM invoices GROUP BY month ORDER BY month"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.299206"
+    "timestamp": "2026-04-29T00:37:22.694098"
   },
   {
-    "memory_id": "1803c407-89b9-4b32-b2ea-e602e1d4a59e",
+    "memory_id": "85ef65f2-481e-4f41-bfd9-63ecb8f6d0a0",
     "question": "What are the most common treatments?",
     "tool_name": "run_sql",
     "args": {
@@ -195,17 +195,17 @@
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.326237"
+    "timestamp": "2026-04-29T00:37:22.720932"
   },
   {
-    "memory_id": "556ff540-f2cb-42fa-a15c-148adf88fcc2",
+    "memory_id": "fd5f8469-71b5-471f-941a-53f7e39bafd3",
     "question": "Show top 5 patients by total amount billed",
     "tool_name": "run_sql",
     "args": {
-      "sql": "SELECT p.first_name || ' ' || p.last_name AS patient, SUM(i.total_amount) AS total_billed FROM invoices i JOIN patients p ON i.patient_id = p.id GROUP BY i.patient_id ORDER BY total_billed DESC LIMIT 5"
+      "sql": "SELECT p.first_name || ' ' || p.last_name AS patient, SUM(i.total_amount) AS total_billed FROM invoices i JOIN patients p ON i.patient_id = p.id GROUP BY i.patient_id, p.first_name, p.last_name ORDER BY total_billed DESC LIMIT 5"
     },
     "success": true,
     "metadata": {},
-    "timestamp": "2026-04-19T18:12:06.354398"
+    "timestamp": "2026-04-29T00:37:22.746519"
   }
 ]

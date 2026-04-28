@@ -19,7 +19,7 @@ from vanna.core.user import UserResolver, User, RequestContext
 from vanna.tools import RunSqlTool, VisualizeDataTool
 
 
-from vanna.integrations.sqlite import SqliteRunner
+from vanna.integrations.postgres import PostgresRunner
 from vanna.integrations.openai import OpenAILlmService          # Groq is OpenAI-compatible
 from persistent_memory import PersistentAgentMemory
 
@@ -33,27 +33,30 @@ if not GROQ_API_KEY:
         "Please add it to your .env file: GROQ_API_KEY=gsk_..."
     )
 
+PG_HOST = os.getenv("PG_HOST", "localhost")
+PG_PORT = os.getenv("PG_PORT", "5432")
+PG_USER = os.getenv("PG_USER", "postgres")
+PG_PASSWORD = os.getenv("PG_PASSWORD")
+PG_DATABASE = os.getenv("PG_DATABASE", "clinic")
+
 # ── Paths ───────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "clinic.db")
-
-if not os.path.exists(DB_PATH):
-    raise FileNotFoundError(
-        f"clinic.db not found at {DB_PATH}. Run setup_database.py first."
-    )
-
 
 # ── 1. LLM Service (Groq via OpenAI-compatible API) ────────────────────────
 llm_service = OpenAILlmService(
-    model="llama-3.3-70b-versatile",
+    model="llama-3.1-8b-instant",
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1",
 )
 
-
 # ── 2. SQL Runner ──────────────────────────────────────────────────────────
-sql_runner = SqliteRunner(database_path=DB_PATH)
-
+sql_runner = PostgresRunner(
+    host=PG_HOST,
+    database=PG_DATABASE,
+    user=PG_USER,
+    password=PG_PASSWORD,
+    port=PG_PORT
+)
 
 # ── 3. Agent Memory ────────────────────────────────────────────────────────
 agent_memory = PersistentAgentMemory(max_items=1000)
@@ -97,7 +100,7 @@ agent_config = AgentConfig(
     max_tool_iterations=10,
     stream_responses=False,          # simpler for FastAPI JSON endpoints
     auto_save_conversations=True,
-    temperature=0.7,
+    temperature=0.0,
 )
 
 
@@ -115,6 +118,14 @@ class ClinicSystemPromptBuilder(DefaultSystemPromptBuilder):
         - appointments (id, patient_id, doctor_id, appointment_date, status, notes)
         - treatments (id, appointment_id, treatment_name, cost, duration_minutes)
         - invoices (id, patient_id, invoice_date, total_amount, paid_amount, status)
+
+        CRITICAL POSTGRESQL RULES:
+        1. When using GROUP BY, every column in your SELECT clause must either be an aggregate function (like COUNT, SUM) or appear in the GROUP BY clause.
+        2. DO NOT GROUP BY an ID while selecting a name without also grouping by the name.
+
+        CRITICAL VISUALIZATION RULES:
+        1. When visualizing data, you MUST use the pandas dataframe variable `df` that is already loaded in memory from the previous SQL query.
+        2. DO NOT write code that attempts to read from a CSV file (e.g. `pd.read_csv('invoices.csv')`). The data is already in `df`.
         """
         return base_prompt + "\n" + schema
 
@@ -132,7 +143,7 @@ agent = Agent(
 if __name__ == "__main__":
     print("[OK] Vanna 2.0 Agent initialised successfully!")
     print(f"     LLM model : llama-3.3-70b-versatile (Groq)")
-    print(f"     Database  : {DB_PATH}")
+    print(f"     Database  : PostgreSQL ({PG_DATABASE})")
     print(f"     Memory    : PersistentAgentMemory (max_items=1000)")
 
     import asyncio
