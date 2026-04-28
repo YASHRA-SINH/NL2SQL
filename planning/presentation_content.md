@@ -11,6 +11,12 @@
 
 **Stack:** Vanna 2.0 Agent · Groq LLaMA 3 · FastAPI · PostgreSQL · Plotly
 
+> 🖼️ **IMAGE PROMPT (Hero Banner / Title Visual):**
+> "A sleek dark-mode futuristic dashboard interface showing a chat input box on the left and a glowing SQL query and bar chart on the right. In the center, a glowing brain-to-database connection line. Style: glassmorphism, deep navy blue and electric teal gradient background, minimalist and modern. No text. Suitable for a presentation title slide."
+
+> 🖼️ **IMAGE PROMPT (Tech Stack Icons Strip):**
+> "A horizontal strip of clean flat icons on a dark background representing the following technologies in order: a flame icon for Groq, a robot head for LLaMA AI model, a database cylinder for PostgreSQL, a lightning bolt for FastAPI, a chart icon for Plotly. Each icon is labeled below it. Flat vector icon style, dark background, teal and white color palette."
+
 ---
 
 ## SLIDE 2 — Problem Statement
@@ -25,6 +31,9 @@
 ### The Ask
 > *"Who are the top 5 patients by billing amount this quarter, and what treatments drove those costs?"*
 > — A question any clinic manager should be able to ask, and get an answer in under 5 seconds.
+
+> 🖼️ **IMAGE PROMPT (Problem Illustration):**
+> "A split illustration showing two scenes side by side on a dark background. Left side: A frustrated non-technical hospital manager staring at a screen full of SQL code, with a red cross symbol and a clock showing days passing. Right side: The same person typing a plain English question in a chat box and instantly receiving a clean bar chart and a data table. Style: flat vector illustration, dark navy background, red for the problem side, green/teal for the solution side."
 
 ---
 
@@ -44,6 +53,9 @@
 - Rule-based systems break on **synonym variation**, abbreviation, and contextual ambiguity (e.g., "visits" vs "appointments").
 - LLMs understand **semantic intent**, not just keyword patterns.
 - With Retrieval-Augmented Generation (RAG) from persistent memory, the system **improves accuracy over time** without retraining.
+
+> 🖼️ **IMAGE PROMPT (Comparison Visual):**
+> "A clean two-column infographic on a dark background. Left column titled 'Old Way' in red: icons of a ticket, a clock, a static PDF report. Right column titled 'NL2SQL Way' in teal: icons of a chat bubble, a lightning bolt for speed, a dynamic bar chart. Style: flat icon infographic, dark navy background, bold contrasting colors, no extra text."
 
 ---
 
@@ -69,6 +81,9 @@
 - Schema can extend to 20+ tables without code changes
 - ETL pipeline ready for ingesting new data sources (lab systems, EHR APIs)
 - Memory layer can be upgraded from JSON file store to a vector database (ChromaDB, Pinecone)
+
+> 🖼️ **IMAGE PROMPT (Scope Boundary Diagram):**
+> "A clean circular boundary diagram on a dark background. Inside the circle labeled 'In Scope': icons for chat, SQL, charts, memory, and security lock. Outside the circle labeled 'Future Scope': icons for multi-tenant, real EHR data, federated DB. Style: flat vector, dark navy, teal circle boundary, white icons and labels."
 
 ---
 
@@ -124,6 +139,12 @@ invoices ───────────────────────�
 | treatments | 350 |
 | invoices | 300 |
 
+> 🖼️ **IMAGE PROMPT (ER Diagram):**
+> "A clean Entity-Relationship (ER) diagram on a dark navy background with 5 tables: patients, doctors, appointments, treatments, invoices. Each table is shown as a rounded rectangle with its column names listed inside. Relationships shown as labeled arrows: patients to appointments (one-to-many), doctors to appointments (one-to-many), appointments to treatments (one-to-many), patients to invoices (one-to-many). Primary keys highlighted in teal/gold. Foreign keys shown with dashed connector lines. Style: professional database diagram, dark background, monochrome with teal accent highlights."
+
+> 🖼️ **IMAGE PROMPT (PostgreSQL Database Icon):**
+> "A large glowing 3D database cylinder icon representing PostgreSQL on a dark background. The PostgreSQL elephant logo subtly embedded on the cylinder. Electric blue and teal glow effect. Minimalist and modern. Suitable for a presentation slide."
+
 ---
 
 ## SLIDE 6 — System Architecture & Methodology
@@ -170,6 +191,9 @@ User (Natural Language Question)
   └──────────────────────────────────────┘
 ```
 
+> 🖼️ **IMAGE PROMPT (System Architecture / Pipeline Diagram):**
+> "A vertical top-to-bottom pipeline flow diagram on a dark navy background with glowing connector arrows between components. Components from top to bottom: 1) A chat bubble icon labeled 'User Input (Natural Language)'. 2) A server icon labeled 'FastAPI Backend'. 3) A robot/brain icon labeled 'Vanna 2.0 Agent'. 4) Two side-by-side boxes: left is a flame icon labeled 'Groq LLaMA 3 LLM', right is a memory/chip icon labeled 'Persistent Agent Memory (RAG)'. 5) A toolbox icon labeled 'Tool Registry: run_sql + visualize_data'. 6) A database cylinder labeled 'PostgreSQL'. 7) A dashboard icon labeled 'Web UI Response: Summary + SQL + Chart'. Glowing teal arrows connecting each step. Style: tech architecture diagram, dark background, glassmorphism card style per component."
+
 ---
 
 ## SLIDE 7 — Vanna's Self-Correction Loop
@@ -195,6 +219,9 @@ Step 4: On success, result is saved to PersistentAgentMemory
 - **Self-corrected:** `SELECT d.name, COUNT(*) FROM doctors d JOIN appointments a ON d.id = a.doctor_id GROUP BY d.id, d.name`
 - **Result:** ✅ Correct answer returned on second attempt — no human intervention
 
+> 🖼️ **IMAGE PROMPT (Self-Correction Loop Diagram):**
+> "A circular feedback loop diagram on a dark background. The loop has 4 steps arranged in a circle with arrows going clockwise: Step 1 'LLM Generates SQL' (robot icon), Step 2 'Execute on PostgreSQL' (database icon), Step 3 'Error? Feed back to LLM' (red warning icon with a curved feedback arrow going back to Step 1), Step 4 'Success → Save to Memory' (green checkmark and memory chip icon). In the center of the loop the text 'Self-Correction Engine'. Style: dark navy background, teal arrows, flat vector icons, red for the error path, green for success."
+
 ---
 
 ## SLIDE 8 — Guardrails for LLM Safety
@@ -217,6 +244,9 @@ A custom `DefaultSystemPromptBuilder` subclass appends:
 - PostgreSQL-specific GROUP BY rules
 - Visualization rules (no CSV reads — use in-memory `df`)
 - Domain boundary enforcement
+
+> 🖼️ **IMAGE PROMPT (Guardrails / Security Shield Diagram):**
+> "A security shield icon in the center of the image on a dark background, with 5 threat labels arranged around it connected by lines: 'DROP TABLE Attack' with a red bomb icon, 'Schema Hallucination' with a ghost icon, 'PII Data Leak' with an eye icon, 'SQL Injection' with a syringe icon, 'Out-of-Domain Query' with a crossed-out globe icon. Each threat has a green 'Blocked' label on the line. Style: dark navy background, shield in electric blue/teal, threat icons in red, blocking labels in green, flat vector."
 
 ---
 
@@ -254,6 +284,12 @@ Source (EHR / Lab System / Billing API)
 - Schema evolution: **Alembic** migration scripts for zero-downtime schema changes
 - Multi-department support: Row-Level Security (RLS) policies in PostgreSQL to isolate department data
 
+> 🖼️ **IMAGE PROMPT (ETL Pipeline Diagram):**
+> "A clean horizontal left-to-right ETL pipeline diagram on a dark background with 5 stages connected by bold arrows: Stage 1 'Extract' — icons of a hospital building, CSV file, and API connector. Stage 2 'Transform' — icon of gears/cogs processing data. Stage 3 'Load' — icon of data flowing into a database cylinder. Stage 4 'Validate' — icon of a green checkmark on a clipboard. Stage 5 'PostgreSQL Production DB' — glowing blue database cylinder. Style: dark navy background, teal arrows, flat vector icons, each stage in a rounded box."
+
+> 🖼️ **IMAGE PROMPT (Scalability Architecture):**
+> "A horizontal scalability diagram on a dark background showing: multiple user icons on the left → an NGINX load balancer box in the center → multiple FastAPI server boxes → a pgbouncer connection pool box → a PostgreSQL database cluster on the right. Arrows show request flow from left to right. Style: dark navy, teal arrows, flat server rack icons, professional tech architecture style."
+
 ---
 
 ## SLIDE 10 — Results and Outcomes
@@ -289,6 +325,12 @@ Source (EHR / Lab System / Billing API)
 → Ranked data table + summary response
 ```
 
+> 🖼️ **IMAGE PROMPT (Results Dashboard Visual):**
+> "A dark-mode analytics dashboard mockup with 4 metric cards at the top: '100% Accuracy on Seeded Queries', '98% After Self-Correction', '2.1s Avg Response', '19 Q-SQL Pairs Seeded'. Below the cards: a horizontal bar chart showing appointment counts per doctor, and a line chart showing monthly revenue trend. Style: glassmorphism dark UI, teal and purple accent colors, no real data needed, just chart shapes and metric cards."
+
+> 🖼️ **IMAGE PROMPT (Accuracy Gauge Chart):**
+> "Three circular gauge/donut chart icons on a dark background: First gauge at 100% in green labeled 'Seeded Query Accuracy'. Second gauge at 85% in teal labeled 'First-Attempt Accuracy'. Third gauge at 98% in blue labeled 'Post Self-Correction Accuracy'. Style: flat vector gauges, dark background, bold percentages in the center of each gauge, minimalist."
+
 ---
 
 ## SLIDE 11 — Lessons Learned
@@ -316,6 +358,9 @@ Source (EHR / Lab System / Billing API)
 ### Key Takeaway
 > The hardest problems weren't AI problems — they were **data engineering problems**: schema strictness, type mismatches, and format contracts between system components.
 
+> 🖼️ **IMAGE PROMPT (Challenge vs Resolution Timeline):**
+> "A vertical timeline infographic on a dark background with 4 items. Each item has two columns: left column shows a red 'Problem' icon and short label, right column shows a green 'Resolved' icon and short label. Items: 1) SQLite→PostgreSQL GROUP BY, 2) LLM Tool Format Leak, 3) CSV Hallucination, 4) Memory Loss on Restart. Style: dark navy background, red for problems, green for resolutions, minimal flat icons, vertical timeline connector line in the center."
+
 ---
 
 ## SLIDE 12 — Future Roadmap
@@ -329,6 +374,9 @@ Source (EHR / Lab System / Billing API)
 | **v3.0** | FHIR API integration | Ingest real EHR data streams |
 | **v3.0** | Audit logging to PostgreSQL | Full compliance trail of all queries run |
 | **v3.0** | Query explanation mode | Show *why* a SQL was generated, not just the result |
+
+> 🖼️ **IMAGE PROMPT (Roadmap Timeline):**
+> "A horizontal roadmap timeline on a dark background with 3 milestones on a glowing line: v2.0 (left, teal color) with icons for vector database and multi-tenant, v2.1 (center, blue color) with icons for streaming and migration, v3.0 (right, purple color) with icons for FHIR/EHR data and audit shield. Style: dark navy background, glowing horizontal line, circular milestone markers, flat icons above each milestone, professional product roadmap style."
 
 ---
 
@@ -346,6 +394,9 @@ A **production-grade, AI-powered clinical data intelligence interface** that:
 ### Why It Matters
 > Healthcare organizations generate petabytes of structured data that clinicians, managers, and finance teams cannot access without an intermediary.
 > HealthQuery AI removes that intermediary entirely.
+
+> 🖼️ **IMAGE PROMPT (Closing Impact Visual):**
+> "A cinematic wide-format illustration on a dark background. On the left: a hospital building with a glowing data stream flowing out of it. In the center: a glowing AI brain node connected to a chat interface. On the right: a smiling non-technical user looking at a clean dashboard with charts and summaries. The visual tells the story: Hospital Data → AI → Insight for Everyone. Style: flat vector illustration, dark navy to deep purple gradient background, teal and gold data stream glows, modern and inspiring."
 
 ---
 *Built with Vanna 2.0 · Groq LLaMA 3 · FastAPI · PostgreSQL · Plotly*
