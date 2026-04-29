@@ -1,13 +1,13 @@
-# HealthQuery AI — NL2SQL Clinical Intelligence System
+# HealthQuery AI — NL2SQL Database Intelligence System
 ### Presentation Slides Content
 
 ---
 
 ## SLIDE 1 — Title Slide
 
-**Project Title:** HealthQuery AI — A Natural Language to SQL Chatbot for Clinical Data Intelligence
+**Project Title:** HealthQuery AI — A Natural Language to SQL Chatbot for Database Intelligence
 
-**Subtitle:** Bridging the Gap Between Non-Technical Healthcare Users and Complex Relational Databases
+**Subtitle:** Bridging the Gap Between Non-Technical Users and Complex Relational Databases
 
 **Stack:** Vanna 2.0 Agent · Groq LLaMA 3 · FastAPI · PostgreSQL · Plotly
 
@@ -64,23 +64,24 @@
 ### What This System Covers
 
 **In Scope:**
-- Natural Language → SQL translation for a 5-table normalized PostgreSQL clinical schema
+- Natural Language → SQL translation for profile-based PostgreSQL databases (`clinic`, `sales`)
 - Real-time SQL execution and result aggregation via a FastAPI backend
-- Automated chart generation (bar, line, pie) using Plotly from query results
-- Persistent Agent Memory — seeded with 19 domain-specific Q&A pairs; self-improving over each session
+- Rule-based chart generation (line, bar, pie, scatter) using Plotly from query results
+- Profile-specific Agent Memory — seeded per database, stored under `memory_store/<profile>.json`
 - Role-aware access control via `UserResolver` (admin vs. read-only user groups)
 - Guardrails against harmful, destructive, or out-of-schema SQL generation
+- Result validation for empty or NULL-heavy outputs
 - Full web UI with dark-mode glassmorphic interface for non-technical end users
 
 **Out of Scope (Current Version):**
-- Multi-tenant database isolation
+- Cross-database/federated SQL in one query
 - Real patient PII (synthetic data only)
-- Federated queries across multiple database instances
+- Production authentication, audit logging, and row-level security
 
 **Scalability Path (Designed For):**
-- Schema can extend to 20+ tables without code changes
+- New PostgreSQL profiles can be added by configuration plus setup/seed scripts
 - ETL pipeline ready for ingesting new data sources (lab systems, EHR APIs)
-- Memory layer can be upgraded from JSON file store to a vector database (ChromaDB, Pinecone)
+- Memory layer can be upgraded from per-profile JSON stores to a vector database (ChromaDB, Pinecone)
 
 > 🖼️ **IMAGE PROMPT (Scope Boundary Diagram):**
 > "A clean circular boundary diagram on a dark background. Inside the circle labeled 'In Scope': icons for chat, SQL, charts, memory, and security lock. Outside the circle labeled 'Future Scope': icons for multi-tenant, real EHR data, federated DB. Style: flat vector, dark navy, teal circle boundary, white icons and labels."
@@ -156,38 +157,38 @@ User (Natural Language Question)
             │
             ▼
   ┌──────────────────────┐
-  │   FastAPI Backend     │  ← /api/chat endpoint
-  │   (main.py)          │  ← DDL schema injected at startup
+  │   FastAPI Backend     │  ← /api/chat + /api/databases
+  │   (app/main.py)       │  ← profile routing + response quality
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │   Vanna 2.0 Agent    │  ← Orchestrates LLM + Tools + Memory
-  │   (vanna_setup.py)   │
+  │   Vanna 2.0 Agent    │  ← One agent bundle per DB profile
+  │   (agent_manager.py) │
   └──────────┬───────────┘
        ┌─────┴──────┐
        │            │
        ▼            ▼
   ┌─────────┐  ┌───────────────────┐
   │  Groq   │  │ PersistentAgent   │
-  │ LLaMA 3 │  │ Memory            │  ← RAG: 19+ seeded Q-SQL pairs
-  │  LLM    │  │ (memory_store.json│  ← JSON → upgradeable to VectorDB
+  │ LLaMA 3 │  │ Memory            │  ← Profile-specific Q-SQL pairs
+  │  LLM    │  │ memory_store/*.json│ ← JSON → upgradeable to VectorDB
   └────┬────┘  └───────────────────┘
        │
        ▼
   ┌──────────────┐
   │  ToolRegistry│
-  │  run_sql     │ → PostgresRunner → PostgreSQL (clinic DB)
-  │  visualize   │ → Plotly chart generation (from in-memory df)
+  │  run_sql     │ → ReadOnlyPostgresRunner → PostgreSQL profile
+  │  quality     │ → validation + summary + chart rules
   └──────┬───────┘
          │
          ▼
   ┌──────────────────────────────────────┐
   │   Aggregated Response to Frontend    │
-  │   • Natural language summary         │
+  │   • Insight summary + warnings       │
   │   • Generated SQL (syntax-highlighted│
   │   • Pandas data table                │
-  │   • Plotly interactive visualization │
+  │   • Rule-selected Plotly visualization│
   └──────────────────────────────────────┘
 ```
 
@@ -209,8 +210,9 @@ Step 3: If SQL fails (syntax error, GROUP BY violation, etc.)
            └── PostgreSQL error message is fed back to the LLM
            └── LLM reasons over the error and generates a corrected query
            └── Repeat up to max_tool_iterations = 10 times
-Step 4: On success, result is saved to PersistentAgentMemory
-           └── Same question asked again → hits memory → zero LLM calls needed
+Step 4: On success, result can be saved to profile-specific PersistentAgentMemory
+           └── Clinic and sales examples remain isolated by database profile
+Step 5: Response quality layer validates output and applies deterministic summary/chart rules
 ```
 
 ### Real Example Observed
@@ -232,18 +234,20 @@ In a clinical environment, unguarded LLM-generated SQL is a significant risk:
 
 | Threat | Example | Guardrail Implemented |
 |---|---|---|
-| **Data destruction** | `DROP TABLE patients` | `run_sql` tool wraps all queries in read-only execution context |
-| **Schema hallucination** | Querying non-existent `diagnoses` table | DDL injected into every system prompt — LLM only "sees" the 5 real tables |
+| **Data destruction** | `DROP TABLE patients` | Custom read-only runner allows only `SELECT`/`WITH` and uses read-only transactions |
+| **Schema hallucination** | Querying non-existent `diagnoses` table | Live schema introspection is injected into the active profile prompt |
 | **PII leakage** | Bulk `SELECT *` dumps of patient data | `UserResolver` enforces group-based access; admin-only tools registered separately |
 | **SQL injection** | Malformed queries from prompt injection | `psycopg2` parameterized queries prevent injection at the driver level |
-| **Out-of-domain queries** | "Show me the CEO's salary" | System prompt explicitly scopes the agent to the clinic domain |
+| **Out-of-domain queries** | Asking sales questions while on clinic profile | Database profile prompt scopes SQL to the selected schema/domain |
+| **Bad visualization choice** | Revenue trend shown as heatmap | Rule-based chart mapping overrides arbitrary LLM chart selection |
+| **NULL-heavy outputs** | `SUM(...)` returns NULL | Result validation surfaces warnings and prompts encourage `COALESCE` |
 
-### Custom System Prompt (ClinicSystemPromptBuilder)
-A custom `DefaultSystemPromptBuilder` subclass appends:
-- The exact table/column schema at every turn
-- PostgreSQL-specific GROUP BY rules
-- Visualization rules (no CSV reads — use in-memory `df`)
-- Domain boundary enforcement
+### Profile-Aware Prompting
+The system prompt now appends:
+- Live table/column/foreign-key schema for the active profile
+- Domain-specific metric definitions and canonical join paths
+- PostgreSQL GROUP BY and aggregate rules, including `COALESCE`
+- Visualization rules and ambiguity handling instructions
 
 > 🖼️ **IMAGE PROMPT (Guardrails / Security Shield Diagram):**
 > "A security shield icon in the center of the image on a dark background, with 5 threat labels arranged around it connected by lines: 'DROP TABLE Attack' with a red bomb icon, 'Schema Hallucination' with a ghost icon, 'PII Data Leak' with an eye icon, 'SQL Injection' with a syringe icon, 'Out-of-Domain Query' with a crossed-out globe icon. Each threat has a green 'Blocked' label on the line. Style: dark navy background, shield in electric blue/teal, threat icons in red, blocking labels in green, flat vector."
@@ -254,7 +258,7 @@ A custom `DefaultSystemPromptBuilder` subclass appends:
 
 ### Designed for Real-World Data Growth
 
-The current `setup_database.py` functions as both a **schema migration tool** and a lightweight **ETL pipeline**:
+The database setup scripts function as both **schema bootstrapping tools** and lightweight **ETL pipelines**:
 
 ```
 Source (EHR / Lab System / Billing API)
@@ -274,11 +278,11 @@ Source (EHR / Lab System / Billing API)
   Validate: Row count assertions per table
             │
             ▼
-  PostgreSQL clinic DB (production-ready state)
+  PostgreSQL profile DB (clinic or sales synthetic state)
 ```
 
 ### Scalability Path
-- Replace JSON `memory_store.json` with **ChromaDB vector store** for semantic Q&A retrieval at scale (millions of pairs)
+- Replace per-profile JSON memory files with **ChromaDB vector store** for semantic Q&A retrieval at scale (millions of pairs)
 - Horizontal scaling: FastAPI behind an **NGINX reverse proxy** + **Gunicorn workers**
 - Database: **Connection pooling** via `pgbouncer` for high-concurrency production deployments
 - Schema evolution: **Alembic** migration scripts for zero-downtime schema changes
@@ -298,12 +302,13 @@ Source (EHR / Lab System / Billing API)
 
 | Capability | Outcome |
 |---|---|
-| **SQL Accuracy (seeded queries)** | 100% — exact match on 19 pre-seeded question-SQL pairs |
-| **SQL Accuracy (novel queries)** | ~85% first-attempt accuracy; ~98% after self-correction |
+| **SQL Accuracy (seeded queries)** | Strong baseline from profile-specific seed memories |
+| **SQL Accuracy (novel queries)** | Improved by live schema prompts, canonical joins, and correction rules |
 | **Average Response Time** | ~2.1 seconds (Groq LPU inference + PostgreSQL round-trip) |
 | **Self-Correction Success Rate** | PostgreSQL GROUP BY errors corrected in 1 retry — 100% |
-| **Ambiguous Query Handling** | Agent asks clarifying questions via conversational turns before executing |
-| **Visualization Generation** | Bar, line, scatter, pie — auto-selected based on result shape |
+| **Ambiguous Query Handling** | App asks clarifying questions before executing unclear requests |
+| **Visualization Generation** | Rule-based mapping: time series→line, ranking→bar, composition→pie |
+| **Result Validation** | Empty and NULL-heavy outputs are flagged in the UI |
 
 ### Example Successful Queries
 
@@ -312,7 +317,7 @@ Source (EHR / Lab System / Billing API)
 → SELECT TO_CHAR(invoice_date, 'YYYY-MM') AS month,
          SUM(total_amount) AS revenue, SUM(paid_amount) AS collected
   FROM invoices GROUP BY month ORDER BY month;
-→ + Line chart rendered automatically
+→ + Line chart rendered automatically by rule-based mapping
 
 "Which doctor has the most appointments?"
 → SELECT d.name, COUNT(*) AS appointment_count
@@ -347,19 +352,23 @@ Source (EHR / Lab System / Billing API)
 - **Root Cause:** The model's internal tool-calling format conflicted with Vanna's OpenAI-compatible wrapper.
 - **Resolution:** Switched to `llama-3.1-8b-instant` + temperature 0.0, and scoped the system prompt to prevent raw function output in text responses.
 
-#### Challenge 3: Visualization — "File not found: invoices.csv"
-- **Problem:** Vanna's `VisualizeDataTool` prompts the LLM to write Plotly Python code. LLM hallucinated `pd.read_csv('invoices.csv')` instead of using the `df` dataframe already in memory.
-- **Resolution:** Added explicit visualization rules to the system prompt: *"Do NOT read from CSV. The data is already in `df`."*
+#### Challenge 3: Visualization Selection
+- **Problem:** The LLM could choose a poor visualization type, such as a heatmap for monthly revenue.
+- **Resolution:** Added a deterministic response quality layer: time series use line charts, rankings use bars, small compositions use pie charts, and correlation charts require explicit user intent.
 
-#### Challenge 4: Persistent Memory Seeding Strategy
-- **Problem:** Default `DemoAgentMemory` is RAM-only — wiped on every server restart. Agent "forgot" all learned Q&A pairs.
-- **Resolution:** Built `PersistentAgentMemory` — a custom wrapper that serializes every successful tool usage to `memory_store.json`. Seeded with `seed_memory.py` to give the agent domain knowledge from day one.
+#### Challenge 4: Multi-Database Memory Isolation
+- **Problem:** A single memory file can mix clinic and sales SQL examples, causing wrong joins and unstable generation.
+- **Resolution:** Memory is stored per profile: `memory_store/clinic.json`, `memory_store/sales.json`. Each database gets its own seed examples and retrieval context.
+
+#### Challenge 5: Generic Summaries and Silent Bad Outputs
+- **Problem:** LLM summaries could be generic, and NULL-heavy outputs appeared valid.
+- **Resolution:** Added deterministic insight summaries and result validation warnings after SQL execution.
 
 ### Key Takeaway
 > The hardest problems weren't AI problems — they were **data engineering problems**: schema strictness, type mismatches, and format contracts between system components.
 
 > 🖼️ **IMAGE PROMPT (Challenge vs Resolution Timeline):**
-> "A vertical timeline infographic on a dark background with 4 items. Each item has two columns: left column shows a red 'Problem' icon and short label, right column shows a green 'Resolved' icon and short label. Items: 1) SQLite→PostgreSQL GROUP BY, 2) LLM Tool Format Leak, 3) CSV Hallucination, 4) Memory Loss on Restart. Style: dark navy background, red for problems, green for resolutions, minimal flat icons, vertical timeline connector line in the center."
+> "A vertical timeline infographic on a dark background with 5 items. Each item has two columns: left column shows a red 'Problem' icon and short label, right column shows a green 'Resolved' icon and short label. Items: 1) SQLite→PostgreSQL GROUP BY, 2) LLM Tool Format Leak, 3) Wrong Chart Selection, 4) Mixed Database Memory, 5) Generic Summaries / NULL Results. Style: dark navy background, red for problems, green for resolutions, minimal flat icons, vertical timeline connector line in the center."
 
 ---
 
@@ -367,7 +376,8 @@ Source (EHR / Lab System / Billing API)
 
 | Phase | Feature | Impact |
 |---|---|---|
-| **v2.0** | ChromaDB vector store for memory | Semantic retrieval at 10M+ Q-SQL pairs |
+| **v2.0** | ChromaDB vector store for profile memory | Semantic retrieval at 10M+ Q-SQL pairs |
+| **v2.0** | Additional database profiles | Add new domains without changing core app flow |
 | **v2.0** | Multi-tenant schema with RLS | Isolate data per hospital department |
 | **v2.1** | Streaming responses (SSE) | Real-time token-by-token output in UI |
 | **v2.1** | Alembic migration support | Zero-downtime schema evolution |
@@ -384,12 +394,12 @@ Source (EHR / Lab System / Billing API)
 
 ### What Was Built
 
-A **production-grade, AI-powered clinical data intelligence interface** that:
+A **production-grade, AI-powered database intelligence interface** that:
 - Translates plain English into valid, optimized PostgreSQL queries
 - Self-corrects on failure — no human SQL debugging required
-- Learns and improves with every successful interaction
+- Supports multiple database profiles with isolated memory
 - Enforces guardrails against harmful, out-of-scope, or data-destructive queries
-- Delivers results as natural language summaries, data tables, and interactive visualizations
+- Delivers validated summaries, data tables, warnings, and rule-selected visualizations
 
 ### Why It Matters
 > Healthcare organizations generate petabytes of structured data that clinicians, managers, and finance teams cannot access without an intermediary.

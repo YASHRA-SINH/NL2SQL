@@ -1,0 +1,178 @@
+[
+  {
+    "memory_id": "d6f443c4-b0d6-4495-8bfc-ed40e14334e4",
+    "question": "What is total revenue by month?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT TO_CHAR(o.order_date, 'YYYY-MM') AS month, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY month ORDER BY month"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.300953"
+  },
+  {
+    "memory_id": "dee96180-5cd1-450d-8f26-b6b657732b4e",
+    "question": "Show top 10 customers by lifetime revenue",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT first_name || ' ' || last_name AS customer, city, region, lifetime_value FROM customers ORDER BY lifetime_value DESC LIMIT 10"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.301275"
+  },
+  {
+    "memory_id": "25ead1fa-c0ab-431e-af3c-bb78247dd38d",
+    "question": "Which product categories sell the most?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT p.category, SUM(oi.quantity) AS units_sold, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM order_items oi JOIN products p ON p.id = oi.product_id JOIN orders o ON o.id = oi.order_id WHERE o.status IN ('completed', 'processing') GROUP BY p.category ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.301547"
+  },
+  {
+    "memory_id": "6ef5067d-f422-42bb-88bb-05bd3c46d5a4",
+    "question": "What is the average order value by sales channel?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT o.channel, AVG(order_totals.order_value) AS average_order_value FROM orders o JOIN (  SELECT order_id, SUM(quantity * unit_price * (1 - discount_pct)) AS order_value   FROM order_items GROUP BY order_id) order_totals ON order_totals.order_id = o.id GROUP BY o.channel ORDER BY average_order_value DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.303959"
+  },
+  {
+    "memory_id": "0661aaa5-a6f5-44fc-b958-8296cd0579cb",
+    "question": "Which sales reps closed the most revenue?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT sr.name, sr.region, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM sales_reps sr JOIN orders o ON o.sales_rep_id = sr.id JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY sr.id, sr.name, sr.region ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.304234"
+  },
+  {
+    "memory_id": "8e8feb4f-094b-454a-8056-5ae10e9f6e70",
+    "question": "Show payment status counts",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT status, COUNT(*) AS payment_count, SUM(amount) AS total_amount FROM payments GROUP BY status ORDER BY payment_count DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.304552"
+  },
+  {
+    "memory_id": "cc1be43d-d842-4a0f-afe2-76b48e75a09e",
+    "question": "Which regions generate the most revenue?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT o.shipping_region, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY o.shipping_region ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.304848"
+  },
+  {
+    "memory_id": "f0ac6896-43c8-4e02-86d9-7eedb803d5ea",
+    "question": "Show support tickets by priority",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT priority, COUNT(*) AS ticket_count FROM support_tickets GROUP BY priority ORDER BY ticket_count DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:56:28.305132"
+  },
+  {
+    "memory_id": "78996d17-65ef-47ce-83a1-0a2f9f79ce90",
+    "question": "What is total revenue by month?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT TO_CHAR(o.order_date, 'YYYY-MM') AS month, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY month ORDER BY month"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.740403"
+  },
+  {
+    "memory_id": "5321e01c-05b3-4df6-bd4c-ba602970f6f1",
+    "question": "Show top 10 customers by lifetime revenue",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT first_name || ' ' || last_name AS customer, city, region, lifetime_value FROM customers ORDER BY lifetime_value DESC LIMIT 10"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.740985"
+  },
+  {
+    "memory_id": "eedf3fab-1b66-4648-97d7-d4e7bc820dd2",
+    "question": "Which product categories sell the most?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT p.category, SUM(oi.quantity) AS units_sold, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM order_items oi JOIN products p ON p.id = oi.product_id JOIN orders o ON o.id = oi.order_id WHERE o.status IN ('completed', 'processing') GROUP BY p.category ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.742412"
+  },
+  {
+    "memory_id": "3e850b13-48c8-434f-beeb-3674b6c50076",
+    "question": "What is the average order value by sales channel?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT o.channel, AVG(order_totals.order_value) AS average_order_value FROM orders o JOIN (  SELECT order_id, SUM(quantity * unit_price * (1 - discount_pct)) AS order_value   FROM order_items GROUP BY order_id) order_totals ON order_totals.order_id = o.id GROUP BY o.channel ORDER BY average_order_value DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.743353"
+  },
+  {
+    "memory_id": "0a1a0947-1895-42b7-b0ba-8106bd31777c",
+    "question": "Which sales reps closed the most revenue?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT sr.name, sr.region, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM sales_reps sr JOIN orders o ON o.sales_rep_id = sr.id JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY sr.id, sr.name, sr.region ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.744215"
+  },
+  {
+    "memory_id": "ccfb3e23-c875-4524-9d65-21ba6a0543d9",
+    "question": "Show payment status counts",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT status, COUNT(*) AS payment_count, SUM(amount) AS total_amount FROM payments GROUP BY status ORDER BY payment_count DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.745122"
+  },
+  {
+    "memory_id": "03aab0cd-b04c-4c31-8192-c30b4f830aa4",
+    "question": "Which regions generate the most revenue?",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT o.shipping_region, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct)) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.status IN ('completed', 'processing') GROUP BY o.shipping_region ORDER BY revenue DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.746002"
+  },
+  {
+    "memory_id": "9ae451a7-9c10-4792-b9e8-97d25fc4c95b",
+    "question": "Show support tickets by priority",
+    "tool_name": "run_sql",
+    "args": {
+      "sql": "SELECT priority, COUNT(*) AS ticket_count FROM support_tickets GROUP BY priority ORDER BY ticket_count DESC"
+    },
+    "success": true,
+    "metadata": {},
+    "timestamp": "2026-04-29T19:57:02.746929"
+  }
+]

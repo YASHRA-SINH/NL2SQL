@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Plot from "react-plotly.js";
 import {
   Activity,
+  AlertTriangle,
   Bot,
   Database,
   Moon,
@@ -14,56 +15,24 @@ import {
   X,
 } from "lucide-react";
 
-const suggestions = [
-  "How many patients do we have?",
-  "Show monthly revenue trend",
-  "Which doctor has the most appointments?",
-  "Show top 5 patients by total amount billed",
-  "What are the most common treatments?",
-  "How many invoices are unpaid or overdue?",
-];
+const defaultSuggestions = ["What tables are available?", "Show a summary of this database"];
 
-const databaseTables = [
-  {
-    name: "patients",
-    description: "Patient demographics, contact details, city, gender, and registration date.",
-    columns: ["id", "first_name", "last_name", "email", "phone", "date_of_birth", "gender", "city", "registered_date"],
-  },
-  {
-    name: "doctors",
-    description: "Doctor profiles with specialization, department, and phone number.",
-    columns: ["id", "name", "specialization", "department", "phone"],
-  },
-  {
-    name: "appointments",
-    description: "Visits joining patients and doctors with appointment date, status, and notes.",
-    columns: ["id", "patient_id", "doctor_id", "appointment_date", "status", "notes"],
-  },
-  {
-    name: "treatments",
-    description: "Treatments linked to appointments, including cost and duration.",
-    columns: ["id", "appointment_id", "treatment_name", "cost", "duration_minutes"],
-  },
-  {
-    name: "invoices",
-    description: "Billing records with invoice date, total amount, paid amount, and payment status.",
-    columns: ["id", "patient_id", "invoice_date", "total_amount", "paid_amount", "status"],
-  },
-];
-
-const welcomeMessage = {
+const baseWelcomeMessage = {
   id: "welcome",
   role: "assistant",
-  summary:
-    "Ask me about patients, doctors, appointments, treatments, or invoices. I can return SQL, data tables, and visualizations.",
+  summary: "Choose a database profile, then ask a question. I can return SQL, data tables, and visualizations.",
 };
 
 function App() {
-  const [messages, setMessages] = useState([welcomeMessage]);
+  const [messages, setMessages] = useState([baseWelcomeMessage]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [showDatabase, setShowDatabase] = useState(false);
+  const [databases, setDatabases] = useState([]);
+  const [activeDatabaseId, setActiveDatabaseId] = useState("clinic");
+  const [databaseMetadata, setDatabaseMetadata] = useState(null);
+  const [metadataError, setMetadataError] = useState("");
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("healthquery-theme");
     if (saved) return saved === "dark";
@@ -82,7 +51,56 @@ function App() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    async function loadDatabases() {
+      try {
+        const response = await fetch("/api/databases");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Could not load database profiles");
+        setDatabases(data);
+        if (data.length && !data.some((database) => database.id === activeDatabaseId)) {
+          setActiveDatabaseId(data[0].id);
+        }
+      } catch (error) {
+        setMetadataError(error.message);
+      }
+    }
+    loadDatabases();
+  }, []);
+
+  useEffect(() => {
+    async function loadDatabaseMetadata() {
+      setMetadataError("");
+      setDatabaseMetadata(null);
+      try {
+        const response = await fetch(`/api/databases/${activeDatabaseId}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Could not load database metadata");
+        setDatabaseMetadata(data);
+        setMessages([
+          {
+            ...baseWelcomeMessage,
+            summary: `Connected to ${data.name}. Ask about ${data.tables.map((table) => table.name).slice(0, 6).join(", ")}.`,
+          },
+        ]);
+        setConversationId(null);
+      } catch (error) {
+        setMetadataError(error.message);
+        setMessages([
+          {
+            ...baseWelcomeMessage,
+            summary: `I could not inspect the ${activeDatabaseId} database profile. ${error.message}`,
+            error: "Database metadata unavailable",
+          },
+        ]);
+      }
+    }
+    loadDatabaseMetadata();
+  }, [activeDatabaseId]);
+
   const statusText = isLoading ? "Analyzing" : "Ready";
+  const suggestions = databaseMetadata?.suggestions?.length ? databaseMetadata.suggestions : defaultSuggestions;
+  const activeDatabase = databases.find((database) => database.id === activeDatabaseId);
 
   const chartTheme = useMemo(
     () => ({
@@ -126,6 +144,7 @@ function App() {
         body: JSON.stringify({
           message,
           conversation_id: conversationId,
+          database_id: activeDatabaseId,
         }),
       });
 
@@ -177,11 +196,26 @@ function App() {
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950 dark:text-white sm:text-2xl">HealthQuery AI</h1>
-              <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">Clinical data workspace</p>
+              <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">{databaseMetadata?.name || activeDatabase?.name || "Database workspace"}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {databases.length > 0 && (
+              <select
+                value={activeDatabaseId}
+                onChange={(event) => setActiveDatabaseId(event.target.value)}
+                disabled={isLoading}
+                className="h-10 rounded-full border border-slate-200/90 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-teal-300 focus:ring-4 focus:ring-teal-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-teal-950"
+                aria-label="Select database profile"
+              >
+                {databases.map((database) => (
+                  <option key={database.id} value={database.id}>
+                    {database.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="hidden h-10 items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/90 px-3 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 sm:flex">
               <span className={`h-2.5 w-2.5 rounded-full ${isLoading ? "bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.16)]" : "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]"}`} />
               {statusText}
@@ -192,7 +226,7 @@ function App() {
               className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200/90 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-teal-500 dark:hover:bg-teal-950/45 dark:hover:text-teal-200 dark:focus:ring-teal-950"
             >
               <Database size={17} />
-              <span className="hidden sm:inline">Know About Database</span>
+              <span className="hidden sm:inline">Database Details</span>
             </button>
             <button
               type="button"
@@ -246,7 +280,7 @@ function App() {
                       submitPrompt(input);
                     }
                   }}
-                  placeholder="Ask about revenue, appointments, patients, doctors..."
+                  placeholder={`Ask about ${databaseMetadata?.domain || "this database"}...`}
                   rows={1}
                   className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-1 py-3 text-sm leading-5 text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100 sm:text-[15px]"
                 />
@@ -264,7 +298,7 @@ function App() {
         </main>
       </div>
 
-      {showDatabase && <DatabasePanel onClose={() => setShowDatabase(false)} />}
+      {showDatabase && <DatabasePanel metadata={databaseMetadata} error={metadataError} onClose={() => setShowDatabase(false)} />}
     </div>
   );
 }
@@ -285,6 +319,17 @@ function ChatMessage({ message, chartTheme, darkMode }) {
         >
           {message.error && <p className="mb-2 text-sm font-semibold text-rose-500 dark:text-rose-300">{message.error}</p>}
           <p className="whitespace-pre-wrap text-[15px]">{message.summary || "Done."}</p>
+          {Array.isArray(message.warnings) && message.warnings.length > 0 && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium leading-5 text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-200">
+              <div className="mb-1 flex items-center gap-1.5 font-semibold">
+                <AlertTriangle size={14} />
+                Result validation
+              </div>
+              {message.warnings.map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </div>
+          )}
         </div>
 
         {!isUser && message.sql && <SqlBlock sql={message.sql} />}
@@ -416,16 +461,19 @@ function TypingBubble() {
   );
 }
 
-function DatabasePanel({ onClose }) {
+function DatabasePanel({ metadata, error, onClose }) {
+  const tables = metadata?.tables || [];
+  const totalRows = tables.reduce((sum, table) => sum + (Number.isFinite(table.row_count) ? table.row_count : 0), 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-md sm:items-center sm:p-4">
       <aside className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-t-[2rem] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)] dark:border-slate-700 dark:bg-slate-900 sm:rounded-[2rem]">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-950/40 sm:px-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-600 dark:text-teal-300">Clinic PostgreSQL Database</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Know About Database</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-600 dark:text-teal-300">{metadata?.dialect || "Database"} Profile</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{metadata?.name || "Database Details"}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This NL2SQL assistant is scoped to five connected clinic tables. You can ask questions about patients, doctors, appointments, treatments, and invoices.
+              {metadata?.description || error || "Database metadata is not available yet."}
             </p>
           </div>
           <button
@@ -440,23 +488,25 @@ function DatabasePanel({ onClose }) {
 
         <div className="max-h-[72vh] overflow-y-auto p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Metric label="Patients" value="200" />
-            <Metric label="Doctors" value="15" />
-            <Metric label="Core Tables" value="5" />
+            <Metric label="Database" value={metadata?.database || "N/A"} />
+            <Metric label="Tables" value={String(tables.length)} />
+            <Metric label="Rows" value={String(totalRows)} />
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            {databaseTables.map((table) => (
+            {tables.map((table) => (
               <div key={table.name} className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
-                <div className="flex items-center gap-2">
-                  <Database size={17} className="text-teal-600 dark:text-teal-300" />
-                  <h3 className="font-semibold text-slate-950 dark:text-white">{table.name}</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Database size={17} className="text-teal-600 dark:text-teal-300" />
+                    <h3 className="font-semibold text-slate-950 dark:text-white">{table.name}</h3>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{table.row_count ?? "?"} rows</span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{table.description}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {table.columns.map((column) => (
-                    <span key={column} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {column}
+                    <span key={column.name} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                      {column.name}
                     </span>
                   ))}
                 </div>

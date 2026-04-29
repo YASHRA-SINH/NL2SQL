@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a **Natural Language to SQL (NL2SQL) Chatbot** designed to allow users to query a clinical database using plain English questions. Instead of writing SQL manually, users can type questions like "Show me patients from Mumbai" and the system automatically generates and executes the appropriate SQL query, then presents results with visualizations and natural language summaries.
+This is a **Natural Language to SQL (NL2SQL) Chatbot** designed to allow users to query configured PostgreSQL databases using plain English questions. Instead of writing SQL manually, users can switch between profiles such as `clinic` and `sales`, ask questions like "Show monthly revenue trend", and the system generates SQL, executes it safely, validates the result, and returns data tables, summaries, and visualizations.
 
 ## End Goal
 
@@ -12,13 +12,12 @@ Build an intelligent AI assistant that bridges the gap between non-technical use
 
 | Component | Technology |
 |-----------|-----------|
-| **LLM** | Groq (llama-3.3-70b-versatile) via OpenAI-compatible API |
+| **LLM** | Groq (llama-3.1-8b-instant) via OpenAI-compatible API |
 | **NL2SQL Framework** | Vanna 2.0 Agent |
 | **Backend API** | FastAPI + Uvicorn |
-| **Database** | PostgreSQL (clinic) |
-| **Frontend** | HTML5, CSS3 (glassmorphism), JavaScript (vanilla) |
+| **Database** | PostgreSQL profiles (`clinic`, `sales`) |
+| **Frontend** | React + Vite + Tailwind CSS |
 | **Charting** | Plotly.js |
-| **Code Highlighting** | Highlight.js |
 | **Data Processing** | Pandas |
 | **Task Queue/Async** | AsyncIO |
 | **Environment Management** | Python-dotenv |
@@ -27,76 +26,43 @@ Build an intelligent AI assistant that bridges the gap between non-technical use
 
 ```
 NL2SQL/
-├── .env                      # Environment variables (contains GROQ_API_KEY - not in git)
-├── .gitignore                # Git ignore file (only contains .env)
-├── clinic.db                 # SQLite database with mock clinical data (auto-generated)
-├── memory_store.json         # Persistent storage for learned Q-SQL pairs (auto-generated on saves)
+├── app/
+│   ├── main.py                    # FastAPI app, profile APIs, chat response aggregation
+│   ├── agent_manager.py           # Builds one Vanna agent per database profile
+│   ├── database_profiles.py       # PostgreSQL profile config, schema introspection, prompt rules
+│   ├── persistent_memory.py       # JSON-backed memory implementation
+│   ├── read_only_postgres_runner.py # Read-only SQL runner with timeout guardrails
+│   └── response_quality.py        # Clarification, result validation, summaries, chart rules
 │
-├── main.py                   # FastAPI application entry point
-│   └── Responsibilities:
-│       • Initializes FastAPI app with CORS middleware
-│       • lifespan events: loads persistent memory on startup, injects DDL schema
-│       • POST /api/chat endpoint: receives user questions, orchestrates Vanna Agent
-│       • GET / endpoint: serves index.html
-│       • Aggregates async UI components into structured JSON responses
-│       • Serves static files (HTML, CSS, JS)
+├── databases/
+│   ├── clinic/
+│   │   ├── create_clinic_database.py
+│   │   ├── setup_clinic_database.py
+│   │   └── seed_clinic_memory.py
+│   └── sales/
+│       ├── setup_sales_database.py
+│       └── seed_sales_memory.py
 │
-├── vanna_setup.py            # Vanna 2.0 Agent initialization & configuration
-│   └── Responsibilities:
-│       • Instantiates OpenAILlmService pointing to Groq API
-│       • Creates PostgresRunner for clinic
-│       • Registers ToolRegistry with RunSqlTool & VisualizeDataTool
-│       • Initializes PersistentAgentMemory
-│       • Creates DefaultUserResolver for auth context
-│       • Configures agent with max iterations, temperature, streaming
+├── memory_store/
+│   ├── clinic.json                # Clinic-specific learned/seeded Q-SQL memory
+│   └── sales.json                 # Sales-specific learned/seeded Q-SQL memory
 │
-├── persistent_memory.py      # Custom AgentMemory with JSON file persistence
-│   └── Responsibilities:
-│       • Wraps Vanna's DemoAgentMemory (in-memory)
-│       • Loads all saved Q-SQL pairs from memory_store.json on startup
-│       • Auto-saves successful tool usages to JSON file
-│       • Enables self-improving agent: learns from past queries
-│       • Provides async load_from_disk() and query methods
-│
-├── setup_database.py         # Database bootstrap script
-│   └── Responsibilities:
-│       • Creates clinic.db schema (5 tables)
-│       • Generates 200+ realistic mock patients, 15 doctors
-│       • Populates 500+ appointments, 350 treatments, 300 invoices
-│       • Uses Indian names and cities for realistic data
-│
-├── seed_memory.py            # Pre-trains agent with Q-SQL pairs
-│   └── Responsibilities:
-│       • Loads 15+ known-good question-SQL pairs
-│       • Saves them to memory_store.json
-│       • Gives agent a head start for similar queries
-│
-├── inspect_memory.py         # Utility to inspect saved memories
-│   └── Responsibilities:
-│       • Loads persistent memory from disk
-│       • Displays current agent memories (questions & SQL)
-│       • Debugging aid
-│
-├── requirements.txt          # Python package dependencies
-│   └── Includes: vanna, fastapi, uvicorn, plotly, pandas, groq, openai, python-dotenv
-│
-├── planning/
-│   ├── implementation_plan.md    # High-level implementation roadmap
-│   └── knowledge_transfer.md     # System architecture & extension guide
-│
-├── static/
-│   ├── index.html            # Web UI layout
-│   │   └── Includes: chat interface, sidebar with suggestions, placeholder for messages
-│   ├── script.js             # Frontend logic
-│   │   └── Handles: form submission, API calls, message rendering, chart display, typing indicators
-│   └── style.css             # Glassmorphism UI styling
-│       └── Features: dark mode, gradient backgrounds, animations, responsive layout
-│
-└── f8c88490871f6169/         # Temporary output directory
-    └── query_results_*.csv   # CSV files from executed queries (cached results)
+├── frontend/                      # React + Vite UI
+├── scripts/inspect_memory.py      # Utility to inspect memory per profile
+├── main.py                        # Convenience entrypoint for app.main
+├── requirements.txt
+└── planning/
 ```
 
-## Database Schema (clinic.db)
+## Database Profiles & Schema
+
+The system now supports multiple PostgreSQL profiles. Each profile has its own connection settings, schema introspection, prompt context, frontend suggestions, and memory file.
+
+Current profiles:
+- `clinic` → clinical operations data: patients, doctors, appointments, treatments, invoices
+- `sales` → sales analytics data: customers, sales reps, products, orders, order items, payments, support tickets
+
+### Clinic Schema
 
 **5 interconnected tables:**
 
@@ -123,7 +89,7 @@ NL2SQL/
    - 300+ invoices; statuses: Paid, Pending, Overdue
    - Foreign key to patients
 
-These schemas are injected into the LLM's context on startup so it understands table structures.
+Schemas are introspected from PostgreSQL and injected into the LLM prompt dynamically per active database profile.
 
 ## Workflow
 
@@ -131,30 +97,35 @@ These schemas are injected into the LLM's context on startup so it understands t
 
 2. **Frontend** → JavaScript captures form submission, sends POST request to `/api/chat`
 
-3. **FastAPI** (`main.py`) → Receives request, creates RequestContext, calls `agent.send_message()`
+3. **FastAPI** (`app/main.py`) → Receives request, resolves `database_id`, creates RequestContext, calls the matching profile agent
 
-4. **Vanna Agent** (`vanna_setup.py`) → 
+4. **Vanna Agent** (`app/agent_manager.py`) → 
    - Receives message and context
    - Uses Groq LLM to interpret the question
    - Generates SQL query
-   - Executes via SqliteRunner
-   - Optionally generates visualization data
+   - Executes via read-only PostgreSQL runner
+   - Returns SQL and result data
    - Returns async stream of UI components
 
-5. **Main.py (Response Aggregation)** → 
+5. **Response Quality Layer** (`app/response_quality.py`) →
+   - Asks clarification for ambiguous questions
+   - Validates NULL-heavy or empty results
+   - Generates concise insight summaries from result rows
+   - Selects deterministic Plotly charts by rules
+
+6. **Main.py (Response Aggregation)** → 
    - Processes async stream of components:
      - `status_card` → Extracts SQL query
      - `dataframe` → Extracts result rows & column names
-     - `chart` → Extracts Plotly chart data
      - `rich_text` → Extracts natural language summary
    - Aggregates into structured JSON response
 
-6. **Persistent Memory** → 
-   - If query succeeded, saves Q-SQL pair to JSON file
-   - Next similar query benefits from this learning
+7. **Profile-Specific Persistent Memory** → 
+   - Successful examples are saved to `memory_store/<profile>.json`
+   - Clinic and sales memories remain isolated, preventing cross-domain query pollution
 
-7. **Frontend Rendering** → 
-   - Receives JSON with `{ sql, data, columns, chart, summary, conversation_id }`
+8. **Frontend Rendering** → 
+   - Receives JSON with `{ sql, data, columns, chart, summary, warnings, conversation_id, database_id }`
    - Renders SQL in syntax-highlighted code block
    - Renders data table
    - Renders Plotly chart
@@ -163,12 +134,13 @@ These schemas are injected into the LLM's context on startup so it understands t
 ## Key Features
 
 ✅ **Natural Language Interface** — Users ask in English; system generates SQL  
-✅ **Persistent Learning** — Successful queries saved to `memory_store.json`; agent improves over time  
+✅ **Multi-Database Profiles** — Switch between `clinic` and `sales` PostgreSQL databases  
+✅ **Profile-Specific Memory** — Successful queries saved to `memory_store/<profile>.json`  
 ✅ **Real-time Data** — Results streamed asynchronously  
-✅ **Visual Insights** — Plotly charts for data visualization  
-✅ **Syntax Highlighting** — Generated SQL displayed with Highlight.js  
+✅ **Rule-Based Visual Insights** — Time series → line chart, rankings → bar chart, composition → pie  
+✅ **Result Validation** — Empty or NULL-heavy outputs are flagged with warnings  
 ✅ **Glassmorphism UI** — Modern, dark-mode web interface  
-✅ **Suggested Queries** — Sidebar with pre-seeded common questions  
+✅ **Dynamic Suggested Queries** — Suggestions change with the selected database profile  
 ✅ **Multi-table Queries** — Handles joins, grouping, aggregations  
 ✅ **Error Handling** — Graceful error messages  
 
@@ -186,14 +158,17 @@ These schemas are injected into the LLM's context on startup so it understands t
    echo "GROQ_API_KEY=gsk_..." > .env
    ```
 
-4. **Init Database**
+4. **Init Databases**
    ```bash
-   python setup_database.py  # Creates clinic.db with schema + mock data
+   python databases/clinic/create_clinic_database.py
+   python databases/clinic/setup_clinic_database.py
+   python databases/sales/setup_sales_database.py
    ```
 
-5. **Seed Memory**
+5. **Seed Profile Memory**
    ```bash
-   python seed_memory.py  # Pre-trains agent with 15+ Q-SQL pairs
+   python databases/clinic/seed_clinic_memory.py
+   python databases/sales/seed_sales_memory.py
    ```
 
 6. **Launch Server**
@@ -205,19 +180,20 @@ These schemas are injected into the LLM's context on startup so it understands t
 
 ## Extension Points
 
-- **New Tables**: Update `setup_database.py`, inject DDL in `main.py` lifespan, update `vanna_setup.py` system prompt
-- **Change LLM**: Swap `OpenAILlmService` in `vanna_setup.py` to different provider
-- **Frontend Customization**: Modify `static/` files; API expects `{ sql, data, columns, chart, summary }` JSON structure
-- **Tools**: Register additional tools in `vanna_setup.py` tool registry for new capabilities
+- **New Database Profile**: Add a `DatabaseProfile` in `app/database_profiles.py`, then create matching setup and seed scripts under `databases/<profile>/`
+- **Prompt Rules**: Add domain-specific SQL definitions and join rules in `app/database_profiles.py`
+- **Response Quality**: Extend `app/response_quality.py` for clarification, validation, summaries, or visualization mapping
+- **Change LLM**: Swap `OpenAILlmService` in `app/agent_manager.py` to a different provider
+- **Frontend Customization**: Modify `frontend/src/App.jsx`; API expects `{ sql, data, columns, chart, summary, warnings }`
 
 ## Important Notes
 
-⚠️ **Memory Persistence** — Only tool usages (successful queries) are persisted to disk. Text memories are session-only. Pre-seeded pairs prevent total loss on restart.
+⚠️ **Memory Persistence** — Memory is now profile-specific. Clinic examples live separately from sales examples to avoid accidental reuse across schemas.
 
-⚠️ **SQL Security** — Currently validates SELECT queries but runs against full database access. For production, implement row-level security and query validation.
+⚠️ **SQL Security** — The custom runner allows read-only SELECT/WITH queries and applies a statement timeout. For production, also use restricted database users, row-level security, and audit logging.
 
 ⚠️ **.env Required** — `GROQ_API_KEY` must be set in `.env` file (git-ignored for security)
 
 ---
 
-This is a fully functional NL2SQL system designed for clinical data querying with a modern, user-friendly interface and intelligent query learning capabilities. All components are modular and can be extended or swapped independently.
+This is a functional NL2SQL system designed for profile-based PostgreSQL querying with a modern web interface, isolated memory, stronger prompt grounding, result validation, and deterministic visualization behavior. All components are modular and can be extended or swapped independently.
