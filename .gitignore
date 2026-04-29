@@ -4,3 +4,5 @@ __pycache__/
 f8c88490871f6169/
 clinic.db
 memory_store.json
+frontend/node_modules/
+frontend/dist/

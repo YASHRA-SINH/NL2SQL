@@ -174,7 +174,10 @@ async def chat(request: ChatRequest):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "db_path": agent_memory._demo.max_items} # just returning something from memory config to show it's alive
+    return {
+        "status": "ok",
+        "memory_records": agent_memory.count_on_disk(),
+    }
 
 # ── Serve Static Files ───────────────────────────────────────────────────
 # Mount the static directory to serve HTML, CSS, JS
